@@ -1,0 +1,1 @@
+class Rock extends Piece {}
