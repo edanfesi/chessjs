@@ -5,12 +5,13 @@ class King extends Piece {
         super(isWhite, killed);
 
         this.sprite = isWhite ? '♔' : '♚';
+        this.name = 'king';
     }
 
     getPossibleMoves(position, board) {
         const [posX, posY] = position;
 
-        const possibleDirections = [
+        const possibleMoves = [
             [posX, posY - 1],     // Up
             [posX, posY + 1],     // Down
             [posX + 1, posY],     // Right

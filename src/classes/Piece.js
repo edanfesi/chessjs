@@ -4,6 +4,16 @@ class Piece {
         this.isWhite = isWhite;
         this.sprite = sprite;
         this.color = isWhite ? "#dcdde1" : "#353b48";
+        this.isFirstMove = true;
+        this.name = '';
+    }
+
+    getName() {
+        return this.name;
+    }
+
+    moved() {
+        this.isFirstMove = false;
     }
 
     isKilled() {
@@ -14,7 +24,7 @@ class Piece {
         this.killed = killed;
     }
 
-    isWhite() {
+    getIsWhite() {
         return this.isWhite;
     }
 
@@ -36,13 +46,14 @@ class Piece {
         const [dirX, dirY] = direction;
 
         let moves = [];
-        for (let x = 0; x < board.getColumns(); x++) {
+        for (let x = 1; x < board.getColumns(); x++) {
             const move = [posX + (x * dirX), posY + (x * dirY)]
+
             if (!board.isValidMove(position, move, false)) {
                 break;
             }
 
-            moves += [move];
+            moves = moves.concat([move]);
         }
 
         return moves;

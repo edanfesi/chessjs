@@ -20,7 +20,7 @@ class Queen extends Piece {
         ]
 
         return possibleDirections.reduce((acc, dir) => 
-            acc + this._getPossibleMovesFromDirection(position, [dir[0], dir[1]], board)
+            acc.concat(this._getPossibleMovesFromDirection(position, [dir[0], dir[1]], board))
         , []);
     }
 }
