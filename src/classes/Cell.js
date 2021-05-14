@@ -24,6 +24,10 @@ class Cell {
         return this.possibleMove;
     }
 
+    clean() {
+        this.piece = null;
+    }
+
     toString() {
         return this.piece;
     }

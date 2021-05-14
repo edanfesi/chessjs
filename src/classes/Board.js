@@ -7,11 +7,12 @@ import Knight from './Knight';
 import Bishop from './Bishop';
 
 class Board {
-    constructor (width = 700, height = 700, rows = 8, columns = 8) {
+    constructor (width = 700, height = 700, rows = 8, columns = 8, events) {
         this.width = width;
         this.height = height;
         this.rows = rows;
         this.columns = columns;
+        this.events = events;
 
         this.cells = this._makeCellsData(rows, columns);
         this.CELL_WIDTH = width / columns;
@@ -31,12 +32,21 @@ class Board {
         this._game_board_left = 0;
         this._game_board_top = 0;
 
+        this._lastPos = null;
         this._possibleMoves = [];
+
+        this._playersTurn = 'p1';
+
+        this._endGame = false;
     }
 
     getColumns() {
         return this.columns;
-    }  
+    }
+
+    getCurrentPlayer() {
+        return this._playersTurn;
+    }
 
     render () {
         this.cells.forEach(((col, idx) => {
@@ -56,7 +66,6 @@ class Board {
 
     set_player (isP1) {
         const playerSide = isP1 ? this.rows - 1 : 0;
-        console.log(`player side ${playerSide} ${Math.abs(1 - playerSide)}`);
 
         // Rock Setup
         this.cells[0][Math.abs(playerSide)].setPiece(new Rock(isP1));
@@ -87,8 +96,8 @@ class Board {
     isValidMove(origin, move, canJump) {
         const [moveX, moveY] = move;
 
-        if (moveX <= 0 
-            || moveY <= 0
+        if (moveX < 0 
+            || moveY < 0
             || moveX >= this.columns 
             || moveY >= this.rows
         ) {
@@ -106,7 +115,6 @@ class Board {
         const [originX, originY] = origin;
         const pieceToMove = this.cells[originX][originY].getPiece();
 
-        console.log(`diff colors ${currentPiece.getColor() !== pieceToMove.getColor()}, canJump ${canJump}`)
         if (currentPiece.getColor() !== pieceToMove.getColor() || canJump) {
             currentCell.setPossibleMove(true);
 
@@ -117,8 +125,8 @@ class Board {
     }
 
     getCell(posX, posY) {
-        if (posX <= 0 
-            || posY <= 0
+        if (posX < 0 
+            || posY < 0
             || posX >= this.columns 
             || posY >= this.rows
         ) {
@@ -128,11 +136,54 @@ class Board {
         return this.cells[posX][posY];
     }
 
-    _selectCell(event) {
-        const posX = this.columns - Math.trunc((this.width - event.pageX) / this.CELL_WIDTH) - 1;
-        const posY = this.rows - Math.trunc((this.height - event.pageY) / this.CELL_HEIGHT) - 1;
+    addEvent(name, eventFunction) {
+        this.canvas.addEventListener(name, (event) => eventFunction(event));
+    }
 
-        this._validatePiece(posX, posY);
+    _selectCell(event) {
+        if (!this._endGame) {
+            const posX = this.columns - Math.trunc((this.width - event.pageX) / this.CELL_WIDTH) - 1;
+            const posY = this.rows - Math.trunc((this.height - event.pageY) / this.CELL_HEIGHT) - 1;
+
+            if (this._isPlayersTurn([posX, posY])) {
+                console.log(`Player turn ${this._playersTurn}`)         
+                const pieceMovement = this._possibleMoves.filter(move => posX === move[0] && posY === move[1]);
+                if (!!pieceMovement.length) {
+                    this._endGame = this._movePiece([posX, posY]);
+
+                    if (this._endGame) {
+                        this.canvas.dispatchEvent(this.events.GAME_OVER);
+                    }
+
+                    this._playersTurn = this._playersTurn === 'p1' ? 'p2' : 'p1';
+                } else {
+                    this._validatePiece(posX, posY);
+                }
+
+                this.render();
+            } else {
+                console.log('It is not your turn');
+            }
+        }
+    }
+
+    _isPlayersTurn(position) {
+        const [postX, postY] = position;
+        const isWhiteTurn = this._playersTurn === 'p1'
+
+        if (this._lastPos) {
+            const [lastPosX, lastPosY] = this._lastPos;
+            const lastCell = this.cells[lastPosX][lastPosY];
+
+            return lastCell.getPiece().getIsWhite() === isWhiteTurn;
+        }
+
+
+        console.log(position)
+        const currentCell = this.cells[postX][postY];
+        console.log(currentCell.getPiece())
+
+        return currentCell.getPiece().getIsWhite() === isWhiteTurn;
     }
 
     _makeCellsData(rows, columns) {
@@ -196,21 +247,48 @@ class Board {
     }
 
     _validatePiece = (posX, posY) => {
-        this._cleanPossibleMove()
-
+        const move = [posX, posY];
         const piece = this.cells[posX][posY].getPiece();
-        console.log(`piece`, piece);
 
         if (piece) {
-            const movements = piece.getPossibleMoves([posX, posY], this);
-            this._possibleMoves = movements;
+            this._cleanPossibleMoves()
 
-            this.render();
-            console.log(`movements: ${movements}`);
+            this._lastPos = move; 
+            const movements = piece.getPossibleMoves(move, this);
+            this._possibleMoves = movements;
         }
     }
 
-    _cleanPossibleMove = () => {
+    _movePiece(newMove) {
+        const [posX, posY] = newMove;
+        const [lastPosX, lastPosY] = this._lastPos;
+
+        const lastPiece = this.cells[lastPosX][lastPosY].getPiece();
+        const selectedCell = this.cells[posX][posY]
+        const selectedPiece = selectedCell.getPiece();
+
+        let isEndGame = false;
+        if (selectedPiece) {
+            selectedPiece.setKilled(true);
+
+            if (selectedPiece.getName() === 'king') {
+                isEndGame = true;
+            }
+        }
+
+        this.cells[lastPosX][lastPosY].clean()
+        this.cells[posX][posY].setPiece(lastPiece)
+        lastPiece.moved();
+
+        this._lastPos = null;
+
+        this._cleanPossibleMoves()
+        this._possibleMoves = [];
+
+        return isEndGame;
+    }
+
+    _cleanPossibleMoves = () => {
         this._possibleMoves.forEach(move => this.cells[move[0]][move[1]].setPossibleMove(false));
     };
 }
