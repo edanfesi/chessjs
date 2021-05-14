@@ -1,4 +1,4 @@
-import Board from "./classes/Board";
+import Game from "./classes/Game";
 
-let board = new Board()
-board.showBoard()
+const game = new Game();
+game.start();
